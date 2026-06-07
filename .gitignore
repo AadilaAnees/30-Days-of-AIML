@@ -1,0 +1,29 @@
+# Database files — never commit these
+*.db
+*.sqlite
+*.sqlite3
+ 
+# Secrets & environment
+.env
+*.key
+ 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+ 
+# Jupyter checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+ 
+# OS
+.DS_Store
+Thumbs.db
+ 
+# Temp outputs
+/tmp/
+*.png
+*.csv
+ 
