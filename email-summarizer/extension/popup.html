@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Summarizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 380px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      color: #1a1a1a;
+      background: #ffffff;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e8e8e8;
+      background: #f8f9fa;
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .header h1 { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+    .header-icon {
+      width: 24px; height: 24px;
+      background: #4A90D9;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 13px;
+    }
+    .btn-settings {
+      background: none; border: none; cursor: pointer;
+      color: #888; font-size: 16px; padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .btn-settings:hover { background: #e8e8e8; color: #333; }
+
+    /* ── Main content ── */
+    .content { padding: 14px 16px; }
+
+    /* ── Idle state ── */
+    #view-idle { text-align: center; padding: 24px 0; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 20px;
+      background: #4A90D9; color: white;
+      border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-primary:hover { background: #357abd; }
+    .btn-primary:disabled { background: #a0c4e8; cursor: not-allowed; }
+    .idle-hint { margin-top: 10px; color: #888; font-size: 12px; }
+
+    /* ── Loading state ── */
+    #view-loading {
+      text-align: center; padding: 32px 0;
+      display: none;
+    }
+    .spinner {
+      width: 28px; height: 28px; margin: 0 auto 12px;
+      border: 3px solid #e8e8e8;
+      border-top-color: #4A90D9;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: #666; font-size: 12px; }
+
+    /* ── Error state ── */
+    #view-error {
+      display: none;
+      background: #fff5f5; border: 1px solid #fcc;
+      border-radius: 8px; padding: 12px 14px;
+      color: #c0392b; font-size: 12px;
+    }
+    #view-error .error-title { font-weight: 600; margin-bottom: 4px; }
+
+    /* ── Result state ── */
+    #view-result { display: none; }
+
+    .email-meta {
+      background: #f4f7fb;
+      border-radius: 8px; padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .email-subject { font-weight: 600; font-size: 13px; color: #1a1a1a; }
+    .email-sender  { font-size: 11px; color: #888; margin-top: 2px; }
+
+    .section-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: #aaa; margin-bottom: 6px;
+    }
+
+    /* Priority badge */
+    .priority-row {
+      display: flex; align-items: center;
+      gap: 8px; margin-bottom: 12px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-high   { background: #fde8e8; color: #c0392b; }
+    .badge-medium { background: #fff3d6; color: #b7770d; }
+    .badge-low    { background: #e8f5e9; color: #2e7d32; }
+    .intent-text  { font-size: 12px; color: #555; }
+
+    /* Summary box */
+    .summary-box {
+      background: #f8f9fa; border-left: 3px solid #4A90D9;
+      border-radius: 0 8px 8px 0;
+      padding: 10px 12px; margin-bottom: 12px;
+      font-size: 13px; line-height: 1.55; color: #222;
+    }
+
+    /* Action items */
+    .action-list {
+      list-style: none; margin-bottom: 12px;
+    }
+    .action-list li {
+      display: flex; gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 12px; color: #333; line-height: 1.4;
+    }
+    .action-list li:last-child { border-bottom: none; }
+    .action-list li::before {
+      content: "✓";
+      color: #4A90D9; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* Entity chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+    .chip {
+      padding: 3px 9px; border-radius: 12px;
+      font-size: 11px; font-weight: 500;
+    }
+    .chip-people { background: #e8f0fe; color: #3b5998; }
+    .chip-orgs   { background: #f3e8ff; color: #6b3fa0; }
+    .chip-dates  { background: #e8f5e9; color: #2e7d32; }
+    .chip-loc    { background: #fff3e0; color: #e65100; }
+
+    /* Stats row */
+    .stats-row {
+      display: flex; gap: 12px;
+      padding-top: 10px; border-top: 1px solid #f0f0f0;
+    }
+    .stat { font-size: 11px; color: #aaa; }
+    .stat span { color: #555; font-weight: 600; }
+
+    /* Footer buttons */
+    .footer-btns {
+      display: flex; gap: 8px; margin-top: 14px;
+    }
+    .btn-secondary {
+      flex: 1; padding: 7px 10px;
+      background: #f0f0f0; color: #444;
+      border: none; border-radius: 6px;
+      font-size: 12px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-secondary:hover { background: #e0e0e0; }
+
+    /* ── Settings panel ── */
+    #view-settings {
+      display: none; padding: 14px 16px;
+    }
+    .settings-title { font-weight: 600; margin-bottom: 14px; font-size: 14px; }
+    .settings-row { margin-bottom: 12px; }
+    .settings-row label {
+      display: block; font-size: 11px;
+      font-weight: 600; color: #888;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 5px;
+    }
+    .settings-row input {
+      width: 100%; padding: 8px 10px;
+      border: 1px solid #ddd; border-radius: 6px;
+      font-size: 12px; font-family: monospace;
+      outline: none;
+    }
+    .settings-row input:focus { border-color: #4A90D9; }
+    .settings-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+    .settings-btns { display: flex; gap: 8px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">✉</div>
+    <h1>Email Summarizer</h1>
+  </div>
+  <button class="btn-settings" id="btn-toggle-settings" title="Settings">⚙</button>
+</div>
+
+<!-- ── View: Idle ── -->
+<div class="content" id="view-idle">
+  <div>
+    <button class="btn-primary" id="btn-summarize">
+      ✦ Summarize this email
+    </button>
+    <div class="idle-hint">Open an email in Gmail, then click above</div>
+  </div>
+</div>
+
+<!-- ── View: Loading ── -->
+<div class="content" id="view-loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Running NLP pipeline…</div>
+</div>
+
+<!-- ── View: Error ── -->
+<div class="content" id="view-error">
+  <div class="error-title">⚠ Could not summarize</div>
+  <div id="error-message"></div>
+  <div class="footer-btns" style="margin-top:10px">
+    <button class="btn-secondary" id="btn-error-retry">Try again</button>
+    <button class="btn-secondary" id="btn-error-back">Back</button>
+  </div>
+</div>
+
+<!-- ── View: Result ── -->
+<div class="content" id="view-result">
+  <!-- Email meta -->
+  <div class="email-meta">
+    <div class="email-subject" id="res-subject"></div>
+    <div class="email-sender"  id="res-sender"></div>
+  </div>
+
+  <!-- Priority + Intent -->
+  <div class="priority-row">
+    <span class="badge" id="res-priority-badge"></span>
+    <span class="intent-text" id="res-intent"></span>
+  </div>
+
+  <!-- Summary -->
+  <div class="section-label">Summary</div>
+  <div class="summary-box" id="res-summary"></div>
+
+  <!-- Action items -->
+  <div id="action-section">
+    <div class="section-label">Action items</div>
+    <ul class="action-list" id="res-actions"></ul>
+  </div>
+
+  <!-- Entities -->
+  <div id="entity-section">
+    <div class="section-label">Key mentions</div>
+    <div class="chips" id="res-entities"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat">Words: <span id="res-words"></span></div>
+    <div class="stat">Time: <span id="res-time"></span></div>
+    <div class="stat" id="res-cache-stat"></div>
+  </div>
+
+  <div class="footer-btns">
+    <button class="btn-secondary" id="btn-refresh">↺ Refresh</button>
+    <button class="btn-secondary" id="btn-back">← New email</button>
+  </div>
+</div>
+
+<!-- ── View: Settings ── -->
+<div id="view-settings">
+  <div class="settings-title">Settings</div>
+
+  <div class="settings-row">
+    <label>API URL (ngrok)</label>
+    <input type="text" id="input-api-url"
+           placeholder="https://abc123.ngrok-free.app">
+    <div class="settings-hint">
+      Paste your Colab ngrok URL here. Update it each time you restart Colab.
+    </div>
+  </div>
+
+  <div class="settings-btns">
+    <button class="btn-primary" id="btn-save-url">Save</button>
+    <button class="btn-secondary" id="btn-settings-back">Back</button>
+  </div>
+
+  <div class="settings-row" style="margin-top:16px">
+    <label>History</label>
+    <button class="btn-secondary" id="btn-clear-history">
+      Clear all saved summaries
+    </button>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
