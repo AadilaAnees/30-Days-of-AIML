@@ -118,30 +118,36 @@ def get_gemini_response(question, prompt):
 
 #functon to retrieve query from sql database
 
-def read_sql_query(sql,db):
-    conn=sqlite3.connect(db)
-    cur=conn.cursor()
-    cur.execute(sql)
-    rows=cur.fetchall()
-    conn.commit()
-    conn.close()
-    for row in rows:
-        print (row)
-    return rows
+def read_sql_query(sql, db):
+    # URI=True and mode=ro forces SQLite into Read-Only mode
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    cur = conn.cursor()
+    
+    try:
+        cur.execute(sql)
+        rows = cur.fetchall()
+        # NOTE: conn.commit() is DELETED. You never need to commit a SELECT statement.
+        return rows
+    except sqlite3.DatabaseError as e:
+        # If the AI tries to DROP or INSERT, it triggers an error here
+        return [(f"Database Error or Unauthorized Query: {e}",)]
+    finally:
+        conn.close()
 
 
 #prompt
 prompt=[
     """
     You are an expert in converting English questions to SQL query!
-    The SQL database has the name STUDENT and has the following columns - NAME, CLASS, 
-    SECTION and MARKS \n\nFor example,\nExample 1 - How many entries of records are present?, 
-    the SQL command will be something like this SELECT COUNT(*) FROM STUDENT ;
-    \nExample 2 - Tell me all the students studying in Data Science class?, 
-    the SQL command will be something like this SELECT * FROM STUDENT 
-    where CLASS="Data Science"; 
-    also the sql code should not have ``` in beginning or end and sql word in output
-
+    The SQL database has the name STUDENT and has the following columns - NAME, CLASS, SECTION and MARKS.
+    
+    CRITICAL RULES:
+    1. ONLY generate 'SELECT' statements.
+    2. NEVER generate 'DROP', 'UPDATE', 'INSERT', 'ALTER', or 'DELETE' statements.
+    3. The SQL code should not have ``` in beginning or end and sql word in output.
+    
+    Example 1 - How many entries of records are present?, the SQL command will be something like this SELECT COUNT(*) FROM STUDENT;
+    Example 2 - Tell me all the students studying in Data Science class?, the SQL command will be something like this SELECT * FROM STUDENT where CLASS="Data Science"; 
     """
 ]
 # Layout 
